@@ -1,0 +1,82 @@
+management:
+  health:
+    circuitbreakers:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+  endpoint:
+    health:
+      show-details: always
+
+resilience4j:
+  retry:
+    retryAspectOrder: 2
+    instances:
+      retry-sample-api:
+        maxAttempts: 5
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+        ignoreExceptions:
+          - org.springframework.web.bind.MethodArgumentNotValidException
+          - org.springframework.web.client.HttpClientErrorException$Unauthorized
+
+  circuitbreaker:
+    circuitBreakerAspectOrder: 1
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 5
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+
+    instances:
+      circuit-breaker-1:
+        baseConfig: default
+        waitDurationInOpenState: 1m
+        failureRateThreshold: 60
+
+      circuit-breaker-2:
+        baseConfig: default
+        waitDurationInOpenState: 2s
+        slowCallDurationThreshold: 1s
+        slowCallRateThreshold: 60
+
+  ratelimiter:
+    instances:
+      rate-limiter-sample-api:
+        limitForPeriod: 5
+        limitRefreshPeriod: 1s
+        timeoutDuration: 10ms
+
+  bulkhead:
+    instances:
+      bulkhead-sample-api:
+        maxConcurrentCalls: 5
+        maxWaitDuration: 0
+        eventConsumerBufferSize: 10
+        writableStackTraceEnabled: true
+        metrics:
+          slidingWindowSize: 10
+          slidingWindowType: COUNT_BASED
+          minimumNumberOfCalls: 5
+          permittedNumberOfCallsInHalfOpenState: 3
+          permittedNumberOfCallsInOpenState: 2
+          failureRateThreshold: 30
+          waitDurationInOpenState: 5000
+
+  timelimiter:
+    instances:
+      time-limiter-sample-api:
+        timeoutDuration: 1s # max time to wait for a response
+        cancelRunningFuture: true # cancels request if the timeout has been exceeded
+        eventConsumerBufferSize: 10
+        eventConsumerThreadPoolSize: 5
