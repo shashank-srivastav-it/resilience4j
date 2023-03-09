@@ -1,0 +1,110 @@
+{
+	"info": {
+		"_postman_id": "4c8f3409-35a5-4252-8bec-e6166827a210",
+		"name": "Resilience4j",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "retry",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": "{{base_url}}/retry"
+			},
+			"response": []
+		},
+		{
+			"name": "circuit-breaker",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": "{{base_url}}/circuit-breaker-1"
+			},
+			"response": []
+		},
+		{
+			"name": "rate-limiter",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": "{{base_url}}/rate-limiter"
+			},
+			"response": []
+		},
+		{
+			"name": "time-limiter",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": "{{base_url}}/time-limiter"
+			},
+			"response": []
+		},
+		{
+			"name": "bulkhead",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": "{{base_url}}/bulkhead"
+			},
+			"response": []
+		},
+		{
+			"name": "circuit-breaker-with-retry",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": "{{base_url}}/retry-with-cb"
+			},
+			"response": []
+		},
+		{
+			"name": "circuit-breaker-slow-api",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": "{{base_url}}/circuit-breaker-with-slow-api"
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080/sample-api",
+			"type": "default"
+		}
+	]
+}
