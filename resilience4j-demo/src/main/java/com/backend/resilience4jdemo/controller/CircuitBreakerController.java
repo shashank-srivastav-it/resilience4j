@@ -1,6 +1,7 @@
 package com.backend.resilience4jdemo.controller;
 
 import com.backend.resilience4jdemo.model.Person;
+import com.backend.resilience4jdemo.model.Response;
 import com.backend.resilience4jdemo.util.Constants;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -19,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.concurrent.CompletableFuture;
@@ -43,46 +45,47 @@ public class CircuitBreakerController {
     //@Retry(name = Constants.DEFAULT)
     @GetMapping("/retry")
     @Retry(name = Constants.RETRY_SAMPLE_API, fallbackMethod = "handler")
-    public String retrySampleApi() {
+    public ResponseEntity<?> retrySampleApi() {
         log.info("Retry sample api call received");
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Person person = Person.builder().name("ab").email("test").build();
         HttpEntity<Person> requestEntity = new HttpEntity<>(person, headers);
-        ResponseEntity<String> responseEntity = restTemplate.exchange(sendPersonEndpoint, HttpMethod.POST, requestEntity, String.class);
-        return responseEntity.getBody();
+        ResponseEntity<Person> result = restTemplate.exchange(sendPersonEndpoint, HttpMethod.POST, requestEntity, Person.class);
+        Response<Person> response = new Response<>(result.getBody());
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
-    @GetMapping("/circuit-breaker-1")
-    @CircuitBreaker(name = Constants.CIRCUIT_BREAKER_1, fallbackMethod = "handler")
-    public String circuitBreakerSampleApi1() {
-        log.info("Circuit Breaker-1 sample api call received");
-        ResponseEntity<String> forEntity = restTemplate.getForEntity(dummyEndpoint, String.class);
-        return forEntity.getBody();
+    @GetMapping("/circuit-breaker")
+    @CircuitBreaker(name = Constants.CIRCUIT_BREAKER, fallbackMethod = "handler")
+    public ResponseEntity<?> circuitBreakerSampleApi() {
+        log.info("Circuit Breaker sample api call received");
+        return restTemplate.getForEntity(dummyEndpoint, String.class);
     }
 
-    @GetMapping("/circuit-breaker-2")
-    @CircuitBreaker(name = Constants.CIRCUIT_BREAKER_2, fallbackMethod = "circuitBreakerHandler")
-    public ResponseEntity<String> circuitBreakerSampleApi2() {
-        log.info("Circuit Breaker-2 sample api call received");
+    @GetMapping("/circuit-breaker-with-slow-api")
+    @CircuitBreaker(name = Constants.CIRCUIT_BREAKER_SLOW_API, fallbackMethod = "circuitBreakerHandler")
+    public ResponseEntity<String> circuitBreakerSlowApi() {
+        log.info("Circuit Breaker for slow api call received");
         ResponseEntity<String> forEntity = restTemplate.getForEntity(sendDelayTextEndpoint, String.class);
         cache = forEntity.getBody();
         return forEntity;
     }
 
     @GetMapping("/retry-with-cb")
-    @CircuitBreaker(name = Constants.CIRCUIT_BREAKER_1, fallbackMethod = "handler")
+    @CircuitBreaker(name = Constants.CIRCUIT_BREAKER, fallbackMethod = "handler")
     @Retry(name = Constants.RETRY_SAMPLE_API)
-    public String retryWithCircuitBreakerSampleApi() {
+    public ResponseEntity<?> retryWithCircuitBreakerSampleApi() {
         log.info("Retry sample api call received");
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Person person = Person.builder().name("ab").email("test").build();
         HttpEntity<Person> requestEntity = new HttpEntity<>(person, headers);
-        ResponseEntity<String> responseEntity = restTemplate.exchange(sendPersonEndpoint, HttpMethod.POST, requestEntity, String.class);
-        return responseEntity.getBody();
+        ResponseEntity<Person> result = restTemplate.exchange(sendPersonEndpoint, HttpMethod.POST, requestEntity, Person.class);
+        Response<Person> response = new Response<>(result.getBody());
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @GetMapping("/rate-limiter")
@@ -96,6 +99,7 @@ public class CircuitBreakerController {
     @Bulkhead(name = Constants.BULKHEAD_SAMPLE_API, fallbackMethod = "bulkheadHandler")
     public ResponseEntity<String> bulkheadSampleApi() {
         log.info("Sample api call received");
+        log.info("Current Thread -> {}", Thread.currentThread());
         return restTemplate.getForEntity(sendTextEndpoint, String.class);
     }
 
@@ -141,8 +145,16 @@ public class CircuitBreakerController {
         return ResponseEntity.ok().body(cache);
     }
 
-    public String handler(Exception ex) {
+    public ResponseEntity<?> handler(Exception ex) {
         log.error(ex.getMessage());
-        return "fallback-response";
+        Response<String> response = new Response<>("Api is not ready to handle the request");
+
+        if (ex instanceof HttpClientErrorException.BadRequest) {
+            response.setMessage(ex.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(response);
+        }
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(response);
     }
 }
